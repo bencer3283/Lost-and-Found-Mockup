@@ -29,20 +29,19 @@ Future<String> uploadFoundObject(
         ]
       },
       "Object": {
+        "type": "select",
+        "select": {"name": object['object']}
+      },
+      "Descriptions": {
         "type": "rich_text",
         "rich_text": [
           {
             "type": "text",
-            "text": {"content": "${object['object']}"}
+            "text": {
+              "content":
+                  "${object['description'][0]}, ${object['description'][1]}, ${object['description'][2]}"
+            }
           }
-        ]
-      },
-      "Descriptions": {
-        "type": "multi_select",
-        "multi_select": [
-          {"name": "${object['description'][0]}"},
-          {"name": "${object['description'][1]}"},
-          {"name": "${object['description'][2]}"}
         ]
       },
       "Date": {
@@ -69,10 +68,8 @@ Future<String> uploadFoundObject(
       },
       body: jsonEncode(requestBody));
 
-  print(response.body.toString());
-
   if (response.statusCode == 200) {
-    return "success";
+    return jsonDecode(response.body)["id"];
   }
 
   return "failed";

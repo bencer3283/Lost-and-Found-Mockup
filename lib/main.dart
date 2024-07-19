@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:camera/camera.dart';
 import 'claude.dart';
 import 'notion.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +7,12 @@ import 'package:flutter/material.dart';
 const imageLink =
     'images/hand-holding-leather-blue-wallet-purse-isolated-white-background_41158-702.jpeg';
 
-void main() {
+late List<CameraDescription> cameraList;
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  cameraList = await availableCameras();
+  // print(cameraList.toString());
   runApp(const MyApp());
 }
 
@@ -63,8 +68,40 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final _locationController =
-      TextEditingController.fromValue(TextEditingValue(text: 'G07-Gongguan'));
+  final _locationController = TextEditingController.fromValue(
+      const TextEditingValue(text: 'G07-Gongguan'));
+
+  late CameraController _cameraController;
+
+  @override
+  void initState() {
+    super.initState();
+    _cameraController =
+        CameraController(cameraList.first, ResolutionPreset.high);
+    _cameraController.initialize().then((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+    }, onError: (err) {
+      if (err is CameraException) {
+        switch (err.code) {
+          case 'CameraAccessDenied':
+            // Handle access errors here.
+            break;
+          default:
+            // Handle other errors here.
+            break;
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _cameraController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,29 +132,48 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Container(
-                width: MediaQuery.of(context).size.width * 0.6,
-                height: MediaQuery.of(context).size.height * 0.6,
-                clipBehavior: Clip.hardEdge,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      width: 5, color: Theme.of(context).primaryColor),
-                  image: const DecorationImage(
-                      image: AssetImage(imageLink), fit: BoxFit.cover),
-                )),
+              //width: MediaQuery.of(context).size.width * 0.7,
+              height: MediaQuery.of(context).size.height * 0.65,
+              clipBehavior: Clip.hardEdge,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border:
+                    Border.all(width: 6, color: Theme.of(context).primaryColor),
+              ),
+              child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: CameraPreview(_cameraController)),
+            ),
             Container(
-              padding: EdgeInsets.all(20),
-              child: TextField(
-                controller: _locationController,
+              padding: EdgeInsets.all(30),
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.3,
+                child: TextField(
+                  controller: _locationController,
+                  decoration: InputDecoration(
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                              width: 2, color: Theme.of(context).primaryColor)),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                              width: 2, color: Theme.of(context).focusColor)),
+                      labelText: 'Location'),
+                ),
               ),
             )
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(IdentifyObjectScreen(
-            identifyOdjectWithClaude(image: AssetImage(imageLink)),
-            _locationController.text)),
+        onPressed: () {
+          _cameraController.takePicture().then((XFile file) {
+            Navigator.of(context).push(IdentifyObjectScreen(
+                identifyOdjectWithClaude(file), _locationController.text));
+          });
+          ;
+        },
         tooltip: 'Scan',
         child: const Icon(Icons.remove_red_eye),
       ), // This trailing comma makes auto-formatting nicer for build methods.
@@ -128,7 +184,7 @@ class _MyHomePageState extends State<MyHomePage> {
 class IdentifyObjectScreen<T> extends PopupRoute<T> {
   final Future identifyResult;
   final String location;
-  IdentifyObjectScreen(this.identifyResult, this.location) {}
+  IdentifyObjectScreen(this.identifyResult, this.location);
   @override
   Color? get barrierColor => Colors.black.withAlpha(0x50);
 
@@ -146,7 +202,6 @@ class IdentifyObjectScreen<T> extends PopupRoute<T> {
   @override
   Widget buildPage(BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation) {
-    bool isComplete = false;
     return Center(
       child: DefaultTextStyle(
         style: Theme.of(context).textTheme.bodyMedium!,
@@ -155,7 +210,7 @@ class IdentifyObjectScreen<T> extends PopupRoute<T> {
           margin: const EdgeInsets.all(20),
           decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              color: Theme.of(context).colorScheme.background),
+              color: Theme.of(context).colorScheme.surface),
           child: FutureBuilder(
             future: identifyResult,
             builder: (context, snapshot) {
@@ -171,7 +226,7 @@ class IdentifyObjectScreen<T> extends PopupRoute<T> {
                     Text(
                       object.toString().toUpperCase(),
                       style: TextStyle(
-                          color: Theme.of(context).colorScheme.onBackground,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: Theme.of(context)
                               .textTheme
                               .headlineLarge!
@@ -185,7 +240,7 @@ class IdentifyObjectScreen<T> extends PopupRoute<T> {
                           ', ' +
                           descriptions[2],
                       style: TextStyle(
-                          color: Theme.of(context).colorScheme.onBackground,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: Theme.of(context)
                               .textTheme
                               .headlineMedium!
@@ -194,7 +249,7 @@ class IdentifyObjectScreen<T> extends PopupRoute<T> {
                     Text(
                       color[0] + ', ' + color[1],
                       style: TextStyle(
-                          color: Theme.of(context).colorScheme.onBackground,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: Theme.of(context)
                               .textTheme
                               .headlineMedium!
@@ -209,7 +264,7 @@ class IdentifyObjectScreen<T> extends PopupRoute<T> {
                 return Text(
                   'Identifying......',
                   style: TextStyle(
-                      color: Theme.of(context).colorScheme.onBackground,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize:
                           Theme.of(context).textTheme.headlineMedium!.fontSize),
                 );
@@ -241,7 +296,7 @@ class _UploadButtonState extends State<UploadButton> {
             setState(() {
               isComplete = true;
             });
-            Future.delayed(Duration(milliseconds: 600))
+            Future.delayed(const Duration(milliseconds: 600))
                 .then((value) => Navigator.of(context).pop());
           }, onError: (err) {});
         },

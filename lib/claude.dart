@@ -1,16 +1,20 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
 import 'keys.dart';
 
-Future<String> identifyOdjectWithClaude({AssetImage? image}) async {
-  ByteData byteData = await rootBundle.load(image!.assetName);
-  List<int> imageBytes = byteData.buffer.asUint8List();
+Future<String> identifyOdjectWithClaude(XFile image) async {
+  final imageBytes = await image.readAsBytes();
+
+  List<int> jpegBytes = await FlutterImageCompress.compressWithList(imageBytes,
+      format: CompressFormat.jpeg, quality: 100);
 
   // Convert the image bytes to base64
-  String base64Image = base64Encode(imageBytes);
+  String base64Image = base64Encode(jpegBytes);
   final Map<String, dynamic> requestBody = {
     "model": "claude-3-5-sonnet-20240620",
     "max_tokens": 128,
@@ -47,16 +51,12 @@ Future<String> identifyOdjectWithClaude({AssetImage? image}) async {
           body: jsonEncode(requestBody));
   String result = '';
   if (response.statusCode == 200) {
-    print('Success!');
+    // print('Success!');
     result = jsonDecode(response.body)['content'][0]['text'].toString();
-    print(response.body.toString());
+    // print(response.body.toString());
   } else {
     result = response.body.toString();
-    print(response.statusCode.toString() + response.body.toString());
+    // print(response.statusCode.toString() + response.body.toString());
   }
   return result;
-}
-
-void main() {
-  identifyOdjectWithClaude();
 }
