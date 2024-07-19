@@ -6,6 +6,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
 import 'keys.dart';
+import 'imgur.dart';
 
 Future<String> identifyOdjectWithClaude(XFile image) async {
   final imageBytes = await image.readAsBytes();
@@ -15,6 +16,8 @@ Future<String> identifyOdjectWithClaude(XFile image) async {
 
   // Convert the image bytes to base64
   String base64Image = base64Encode(jpegBytes);
+  uploadImageToImgur(base64Image);
+
   final Map<String, dynamic> requestBody = {
     "model": "claude-3-5-sonnet-20240620",
     "max_tokens": 128,
