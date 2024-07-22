@@ -170,7 +170,9 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: () {
           _cameraController.takePicture().then((XFile file) {
             Navigator.of(context).push(IdentifyObjectScreen(
-                identifyOdjectWithClaude(file), _locationController.text));
+                identifyOdjectWithClaude(file),
+                _locationController.text,
+                file));
           });
           ;
         },
@@ -184,7 +186,8 @@ class _MyHomePageState extends State<MyHomePage> {
 class IdentifyObjectScreen<T> extends PopupRoute<T> {
   final Future identifyResult;
   final String location;
-  IdentifyObjectScreen(this.identifyResult, this.location);
+  final XFile image;
+  IdentifyObjectScreen(this.identifyResult, this.location, this.image);
   @override
   Color? get barrierColor => Colors.black.withAlpha(0x50);
 
@@ -257,7 +260,7 @@ class IdentifyObjectScreen<T> extends PopupRoute<T> {
                     ),
                     Container(
                         alignment: Alignment.bottomRight,
-                        child: UploadButton(jsonresult, location))
+                        child: UploadButton(jsonresult, location, image))
                   ],
                 );
               } else {
@@ -278,9 +281,10 @@ class IdentifyObjectScreen<T> extends PopupRoute<T> {
 }
 
 class UploadButton extends StatefulWidget {
-  const UploadButton(this.payload, this.location, {super.key});
+  const UploadButton(this.payload, this.location, this.image, {super.key});
   final payload;
   final location;
+  final image;
 
   @override
   State<UploadButton> createState() => _UploadButtonState();
@@ -296,6 +300,7 @@ class _UploadButtonState extends State<UploadButton> {
             setState(() {
               isComplete = true;
             });
+            addPhotoToNotionPage(value, widget.image);
             Future.delayed(const Duration(milliseconds: 600))
                 .then((value) => Navigator.of(context).pop());
           }, onError: (err) {});

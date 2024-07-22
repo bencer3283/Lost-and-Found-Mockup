@@ -1,7 +1,8 @@
 import 'dart:convert';
-
+import 'package:camera/camera.dart';
 import 'keys.dart';
 import 'package:http/http.dart' as http;
+import 'imgur.dart';
 
 const databaseId = '9aeebd9e7243419e88eaebca530df04f';
 
@@ -72,7 +73,33 @@ Future<String> uploadFoundObject(
     return jsonDecode(response.body)["id"];
   }
 
-  return "failed";
+  return "database upload failed";
+}
+
+Future<String> addPhotoToNotionPage(String pageId, XFile image) async {
+  final response = await http.patch(
+      Uri.parse('https://api.notion.com/v1/blocks/${pageId}/children'),
+      headers: {
+        'Authorization': 'Bearer ' "${notionSecret}" '',
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28"
+      },
+      body: json.encode({
+        "children": [
+          {
+            "object": "block",
+            "type": "image",
+            "image": {
+              "type": "external",
+              "external": {"url": await uploadImageToImgur(image)}
+            }
+          }
+        ]
+      }));
+  if (response.statusCode == 200) {
+    return 'success';
+  }
+  return response.body;
 }
 
 void main() async {

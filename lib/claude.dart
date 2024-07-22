@@ -16,7 +16,6 @@ Future<String> identifyOdjectWithClaude(XFile image) async {
 
   // Convert the image bytes to base64
   String base64Image = base64Encode(jpegBytes);
-  uploadImageToImgur(base64Image);
 
   final Map<String, dynamic> requestBody = {
     "model": "claude-3-5-sonnet-20240620",
