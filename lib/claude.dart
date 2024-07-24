@@ -21,7 +21,7 @@ Future<String> identifyOdjectWithClaude(XFile image) async {
     "model": "claude-3-5-sonnet-20240620",
     "max_tokens": 128,
     "system":
-        "I am asking your identify objects in an image. The object is found in a public transportation system. The information you gave me of the object will be used to index the object in a lost&found database. Please use language that is most likely used by the owner of the object to the search this item in the database.",
+        "I am asking you to identify the object in an image. The object is found in a public transportation system. The information you gave me of the object will be used to index the object in a lost&found database. Please use language that is most likely used by the owner of the object to the search this item in the database.",
     "messages": [
       {
         "role": "user",
