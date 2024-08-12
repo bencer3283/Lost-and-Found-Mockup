@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:camera/camera.dart';
 import 'claude.dart';
 import 'notion.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 const imageLink =
     'images/hand-holding-leather-blue-wallet-purse-isolated-white-background_41158-702.jpeg';
@@ -12,6 +14,9 @@ late List<CameraDescription> cameraList;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   cameraList = await availableCameras();
+  await FlutterBluePlus.adapterState
+      .where((val) => val == BluetoothAdapterState.on)
+      .first;
   // print(cameraList.toString());
   runApp(const MyApp());
 }
@@ -73,6 +78,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
   late CameraController _cameraController;
 
+  late StreamSubscription<List<ScanResult>> _scanResultsSubscription;
+  late BluetoothDevice _esp;
+  late List<BluetoothService> _espServices;
+  late BluetoothCharacteristic _espBluetoothCharacteristic;
+
+  bool _isConnected = false;
+
   @override
   void initState() {
     super.initState();
@@ -95,11 +107,44 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       }
     });
+
+    _scanResultsSubscription = FlutterBluePlus.onScanResults.listen(
+      (results) {
+        if (results.isNotEmpty) {
+          _esp = results.last.device; // the most recently found device
+          print('${_esp.remoteId}: "${_esp.advName}" found!');
+          _esp.connect().then((d) {
+            _esp.discoverServices().then((services) {
+              _espServices = services;
+              _espBluetoothCharacteristic = _espServices
+                  .firstWhere((service) =>
+                      service.uuid ==
+                      Guid("b572a6e7-6b0d-4963-9fb8-43a38a18013b"))
+                  .characteristics
+                  .firstWhere((charac) =>
+                      charac.uuid ==
+                      Guid("7f2b16b1-d0e6-4001-8ad9-b28ddd9a59ee"));
+              setState(() {
+                _isConnected = true;
+              });
+            });
+          });
+        }
+      },
+      onError: (e) => print(e),
+    );
+    FlutterBluePlus.cancelWhenScanComplete(_scanResultsSubscription);
+    FlutterBluePlus.startScan(
+        withServices: [Guid("b572a6e7-6b0d-4963-9fb8-43a38a18013b")],
+        timeout: Duration(seconds: 15));
+    FlutterBluePlus.isScanning.where((val) => val == false).first;
   }
 
   @override
   void dispose() {
     _cameraController.dispose();
+    // _scanResultsSubscription.cancel();
+    // _esp.disconnect();
     super.dispose();
   }
 
@@ -162,7 +207,26 @@ class _MyHomePageState extends State<MyHomePage> {
                       labelText: 'Location'),
                 ),
               ),
-            )
+            ),
+            _isConnected
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      OutlinedButton(
+                          onPressed: () {
+                            _espBluetoothCharacteristic
+                                .write("unlocked".codeUnits);
+                          },
+                          child: const Text('Unlock')),
+                      OutlinedButton(
+                          onPressed: () {
+                            _espBluetoothCharacteristic
+                                .write("locked".codeUnits);
+                          },
+                          child: const Text('Lock')),
+                    ],
+                  )
+                : const Text("connecting")
           ],
         ),
       ),
