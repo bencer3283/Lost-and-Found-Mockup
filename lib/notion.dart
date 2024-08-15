@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:camera/camera.dart';
+import 'dart:typed_data';
 import 'keys.dart';
 import 'package:http/http.dart' as http;
 import 'imgur.dart';
@@ -76,7 +76,7 @@ Future<String> uploadFoundObject(
   return "database upload failed";
 }
 
-Future<String> addPhotoToNotionPage(String pageId, XFile image) async {
+Future<String> addPhotoToNotionPage(String pageId, Uint8List image) async {
   final response = await http.patch(
       Uri.parse('https://api.notion.com/v1/blocks/${pageId}/children'),
       headers: {

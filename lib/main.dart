@@ -1,23 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:camera/camera.dart';
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
+
+import 'mjpeg.dart';
+import 'package:process_run/shell.dart';
 import 'claude.dart';
 import 'notion.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
-const imageLink =
-    'images/hand-holding-leather-blue-wallet-purse-isolated-white-background_41158-702.jpeg';
-
-late List<CameraDescription> cameraList;
+final shell = Shell();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  cameraList = await availableCameras();
-  await FlutterBluePlus.adapterState
-      .where((val) => val == BluetoothAdapterState.on)
-      .first;
-  // print(cameraList.toString());
+  await shell.run("sudo motion -c /home/ben-rpi/Desktop/local_stream.conf");
   runApp(const MyApp());
 }
 
@@ -28,7 +24,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Lost and Found Mockup',
+      title: 'Lost and Found on RPI',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -49,7 +45,7 @@ class MyApp extends StatelessWidget {
             seedColor: const Color.fromARGB(255, 99, 173, 68)),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Lost and Found HaaS'),
     );
   }
 }
@@ -76,77 +72,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final _locationController = TextEditingController.fromValue(
       const TextEditingValue(text: 'G07-Gongguan'));
 
-  late CameraController _cameraController;
-
-  late StreamSubscription<List<ScanResult>> _scanResultsSubscription;
-  late BluetoothDevice _esp;
-  late List<BluetoothService> _espServices;
-  late BluetoothCharacteristic _espBluetoothCharacteristic;
-
-  bool _isConnected = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _cameraController =
-        CameraController(cameraList.first, ResolutionPreset.high);
-    _cameraController.initialize().then((_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {});
-    }, onError: (err) {
-      if (err is CameraException) {
-        switch (err.code) {
-          case 'CameraAccessDenied':
-            // Handle access errors here.
-            break;
-          default:
-            // Handle other errors here.
-            break;
-        }
-      }
-    });
-
-    _scanResultsSubscription = FlutterBluePlus.onScanResults.listen(
-      (results) {
-        if (results.isNotEmpty) {
-          _esp = results.last.device; // the most recently found device
-          print('${_esp.remoteId}: "${_esp.advName}" found!');
-          _esp.connect().then((d) {
-            _esp.discoverServices().then((services) {
-              _espServices = services;
-              _espBluetoothCharacteristic = _espServices
-                  .firstWhere((service) =>
-                      service.uuid ==
-                      Guid("b572a6e7-6b0d-4963-9fb8-43a38a18013b"))
-                  .characteristics
-                  .firstWhere((charac) =>
-                      charac.uuid ==
-                      Guid("7f2b16b1-d0e6-4001-8ad9-b28ddd9a59ee"));
-              setState(() {
-                _isConnected = true;
-              });
-            });
-          });
-        }
-      },
-      onError: (e) => print(e),
-    );
-    FlutterBluePlus.cancelWhenScanComplete(_scanResultsSubscription);
-    FlutterBluePlus.startScan(
-        withServices: [Guid("b572a6e7-6b0d-4963-9fb8-43a38a18013b")],
-        timeout: Duration(seconds: 15));
-    FlutterBluePlus.isScanning.where((val) => val == false).first;
-  }
-
-  @override
-  void dispose() {
-    _cameraController.dispose();
-    // _scanResultsSubscription.cancel();
-    // _esp.disconnect();
-    super.dispose();
-  }
+  final _mjpegController = MjpegPreprocessorWithFrameGrabber();
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             Container(
               //width: MediaQuery.of(context).size.width * 0.7,
-              height: MediaQuery.of(context).size.height * 0.65,
+              height: MediaQuery.of(context).size.height * 0.5,
               clipBehavior: Clip.hardEdge,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
@@ -187,62 +113,78 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
-                  child: CameraPreview(_cameraController)),
+                  child: Mjpeg(
+                    stream: 'http://localhost:8081',
+                    isLive: true,
+                    preprocessor: _mjpegController,
+                  )),
             ),
-            Container(
-              padding: EdgeInsets.all(30),
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.3,
-                child: TextField(
-                  controller: _locationController,
-                  decoration: InputDecoration(
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(
-                              width: 2, color: Theme.of(context).primaryColor)),
-                      focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(
-                              width: 2, color: Theme.of(context).focusColor)),
-                      labelText: 'Location'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(30),
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.3,
+                    child: TextField(
+                      controller: _locationController,
+                      decoration: InputDecoration(
+                          enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                  width: 2,
+                                  color: Theme.of(context).primaryColor)),
+                          focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                  width: 2,
+                                  color: Theme.of(context).focusColor)),
+                          labelText: 'Location'),
+                    ),
+                  ),
                 ),
-              ),
+                ElevatedButton(
+                    onPressed: () {
+                      final imageU8List = _mjpegController.u8list;
+                      Navigator.of(context).push(IdentifyObjectScreen(
+                          identifyOdjectWithClaude(imageU8List),
+                          _locationController.text,
+                          imageU8List));
+                    },
+                    child: Text('Scan'))
+              ],
             ),
-            _isConnected
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      OutlinedButton(
-                          onPressed: () {
-                            _espBluetoothCharacteristic
-                                .write("unlocked".codeUnits);
-                          },
-                          child: const Text('Unlock')),
-                      OutlinedButton(
-                          onPressed: () {
-                            _espBluetoothCharacteristic
-                                .write("locked".codeUnits);
-                          },
-                          child: const Text('Lock')),
-                    ],
-                  )
-                : const Text("connecting")
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton(onPressed: () {}, child: const Text('Unlock')),
+                OutlinedButton(onPressed: () {}, child: const Text('Lock')),
+                ElevatedButton(
+                    child: Text('Close App'),
+                    onPressed: () {
+                      shell.run("sudo pkill motion").then((value) => {
+                            SystemChannels.platform
+                                .invokeMethod('SystemNavigator.pop')
+                          });
+                    }),
+              ],
+            )
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _cameraController.takePicture().then((XFile file) {
-            Navigator.of(context).push(IdentifyObjectScreen(
-                identifyOdjectWithClaude(file),
-                _locationController.text,
-                file));
-          });
-          ;
+          final imageU8List = _mjpegController.u8list;
+          Navigator.of(context).push(IdentifyObjectScreen(
+              identifyOdjectWithClaude(imageU8List),
+              _locationController.text,
+              imageU8List));
         },
         tooltip: 'Scan',
         child: const Icon(Icons.remove_red_eye),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation
+          .endTop, // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
@@ -250,7 +192,7 @@ class _MyHomePageState extends State<MyHomePage> {
 class IdentifyObjectScreen<T> extends PopupRoute<T> {
   final Future identifyResult;
   final String location;
-  final XFile image;
+  final Uint8List image;
   IdentifyObjectScreen(this.identifyResult, this.location, this.image);
   @override
   Color? get barrierColor => Colors.black.withAlpha(0x50);
@@ -286,46 +228,49 @@ class IdentifyObjectScreen<T> extends PopupRoute<T> {
                 final object = jsonresult['object'];
                 final descriptions = jsonresult['description'];
                 final color = jsonresult['color'];
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      object.toString().toUpperCase(),
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: Theme.of(context)
-                              .textTheme
-                              .headlineLarge!
-                              .fontSize,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      descriptions[0] +
-                          ', ' +
-                          descriptions[1] +
-                          ', ' +
-                          descriptions[2],
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: Theme.of(context)
-                              .textTheme
-                              .headlineMedium!
-                              .fontSize),
-                    ),
-                    Text(
-                      color[0] + ', ' + color[1],
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: Theme.of(context)
-                              .textTheme
-                              .headlineMedium!
-                              .fontSize),
-                    ),
-                    Container(
-                        alignment: Alignment.bottomRight,
-                        child: UploadButton(jsonresult, location, image))
-                  ],
+                return Container(
+                  width: 600,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        object.toString().toUpperCase(),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: Theme.of(context)
+                                .textTheme
+                                .headlineLarge!
+                                .fontSize,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        descriptions[0] +
+                            ', ' +
+                            descriptions[1] +
+                            ', ' +
+                            descriptions[2],
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: Theme.of(context)
+                                .textTheme
+                                .headlineMedium!
+                                .fontSize),
+                      ),
+                      Text(
+                        color[0] + ', ' + color[1],
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: Theme.of(context)
+                                .textTheme
+                                .headlineMedium!
+                                .fontSize),
+                      ),
+                      Container(
+                          alignment: Alignment.bottomRight,
+                          child: UploadButton(jsonresult, location, image))
+                    ],
+                  ),
                 );
               } else {
                 return Text(
@@ -348,7 +293,7 @@ class UploadButton extends StatefulWidget {
   const UploadButton(this.payload, this.location, this.image, {super.key});
   final payload;
   final location;
-  final image;
+  final Uint8List image;
 
   @override
   State<UploadButton> createState() => _UploadButtonState();

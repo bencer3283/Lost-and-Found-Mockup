@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -8,14 +7,12 @@ import 'package:http/http.dart' as http;
 import 'keys.dart';
 import 'imgur.dart';
 
-Future<String> identifyOdjectWithClaude(XFile image) async {
-  final imageBytes = await image.readAsBytes();
-
-  List<int> jpegBytes = await FlutterImageCompress.compressWithList(imageBytes,
-      format: CompressFormat.jpeg, quality: 100);
+Future<String> identifyOdjectWithClaude(Uint8List imageBytes) async {
+  // List<int> jpegBytes = await FlutterImageCompress.compressWithList(imageBytes,
+  //     format: CompressFormat.jpeg, quality: 100);
 
   // Convert the image bytes to base64
-  String base64Image = base64Encode(jpegBytes);
+  String base64Image = base64Encode(imageBytes);
 
   final Map<String, dynamic> requestBody = {
     "model": "claude-3-5-sonnet-20240620",

@@ -36,9 +36,10 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.6
   http: ^1.2.2
-  camera: ^0.11.0+1
   flutter_image_compress: ^2.3.0
-  flutter_blue_plus: ^1.32.11
+  process_run: ^1.0.1
+  flutter_hooks: ^0.20.5
+  visibility_detector: ^0.4.0+2
 
 dev_dependencies:
   flutter_test:
@@ -64,8 +65,8 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - images/hand-holding-leather-blue-wallet-purse-isolated-white-background_41158-702.jpeg
-    - images/PRODUCTIMG_CBEDDPSSTVI25_58420.jpg
+    # - images/hand-holding-leather-blue-wallet-purse-isolated-white-background_41158-702.jpeg
+    # - images/PRODUCTIMG_CBEDDPSSTVI25_58420.jpg
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
