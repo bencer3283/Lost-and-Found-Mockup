@@ -40,6 +40,7 @@ dependencies:
   process_run: ^1.0.1
   flutter_hooks: ^0.20.5
   visibility_detector: ^0.4.0+2
+  rpi_gpio: ^0.10.0
 
 dev_dependencies:
   flutter_test:

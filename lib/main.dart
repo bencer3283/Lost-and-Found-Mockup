@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import 'package:rpi_gpio/gpio.dart';
+import 'package:rpi_gpio/rpi_gpio.dart';
 
 import 'mjpeg.dart';
 import 'package:process_run/shell.dart';
@@ -74,6 +76,29 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final _mjpegController = MjpegPreprocessorWithFrameGrabber();
 
+  late final _gpio;
+  late final _lock;
+
+  var gpioInit = false;
+
+  @override
+  void initState() {
+    super.initState();
+    initialize_RpiGpio().then((gpio) {
+      _gpio = gpio;
+      _lock = gpio.output(37);
+      setState(() {
+        gpioInit = true;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _gpio.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -119,53 +144,46 @@ class _MyHomePageState extends State<MyHomePage> {
                     preprocessor: _mjpegController,
                   )),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(30),
-                  child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.3,
-                    child: TextField(
-                      controller: _locationController,
-                      decoration: InputDecoration(
-                          enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                  width: 2,
-                                  color: Theme.of(context).primaryColor)),
-                          focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                  width: 2,
-                                  color: Theme.of(context).focusColor)),
-                          labelText: 'Location'),
-                    ),
-                  ),
+            Container(
+              padding: EdgeInsets.all(30),
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.3,
+                child: TextField(
+                  controller: _locationController,
+                  decoration: InputDecoration(
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                              width: 2, color: Theme.of(context).primaryColor)),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                              width: 2, color: Theme.of(context).focusColor)),
+                      labelText: 'Location'),
                 ),
-                ElevatedButton(
-                    onPressed: () {
-                      final imageU8List = _mjpegController.u8list;
-                      Navigator.of(context).push(IdentifyObjectScreen(
-                          identifyOdjectWithClaude(imageU8List),
-                          _locationController.text,
-                          imageU8List));
-                    },
-                    child: Text('Scan'))
-              ],
+              ),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                OutlinedButton(onPressed: () {}, child: const Text('Unlock')),
-                OutlinedButton(onPressed: () {}, child: const Text('Lock')),
+                OutlinedButton(
+                    onPressed: gpioInit
+                        ? () {
+                            _lock.value = true;
+                          }
+                        : () {},
+                    child: const Text('Unlock')),
+                OutlinedButton(
+                    onPressed: gpioInit
+                        ? () {
+                            _lock.value = false;
+                          }
+                        : () {},
+                    child: const Text('Lock')),
                 ElevatedButton(
                     child: Text('Close App'),
                     onPressed: () {
-                      shell.run("sudo pkill motion").then((value) => {
-                            SystemChannels.platform
-                                .invokeMethod('SystemNavigator.pop')
-                          });
+                      shell.run("sudo pkill motion");
                     }),
               ],
             )
@@ -184,7 +202,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: const Icon(Icons.remove_red_eye),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation
-          .endTop, // This trailing comma makes auto-formatting nicer for build methods.
+          .endFloat, // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
