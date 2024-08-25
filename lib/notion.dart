@@ -4,14 +4,15 @@ import 'keys.dart';
 import 'package:http/http.dart' as http;
 import 'imgur.dart';
 
-const databaseId = '9aeebd9e7243419e88eaebca530df04f';
+const databaseId =
+    'e7c0175bd9d54e1e9a08a51ec41b18ac'; // '9aeebd9e7243419e88eaebca530df04f';
 
 Future<String> uploadFoundObject(
     Map<String, dynamic> object, String location) async {
   final requestBody = <String, dynamic>{
     "parent": {"type": "database_id", "database_id": databaseId},
     "properties": {
-      "ID": {
+      "number": {
         "type": "title",
         "title": [
           {
@@ -20,43 +21,58 @@ Future<String> uploadFoundObject(
           }
         ]
       },
-      "Colors": {
+      "color": {
+        "type": "multi_select",
+        "multi_select": [
+          {
+            "name": "${object['color'][0]}",
+          },
+          {"name": "${object['color'][1]}"}
+        ]
+      },
+      "items": {
         "type": "rich_text",
         "rich_text": [
           {
             "type": "text",
-            "text": {"content": "${object['color'][0]}, ${object['color'][1]}"}
+            "text": {"content": object['object']}
           }
         ]
       },
-      "Object": {
-        "type": "select",
-        "select": {"name": object['object']}
-      },
-      "Descriptions": {
-        "type": "rich_text",
-        "rich_text": [
+      "feature": {
+        "type": "multi_select",
+        "multi_select": [
           {
-            "type": "text",
-            "text": {
-              "content":
-                  "${object['description'][0]}, ${object['description'][1]}, ${object['description'][2]}"
-            }
-          }
+            "name": "${object['description'][0]}",
+          },
+          {"name": "${object['description'][1]}"},
+          {"name": "${object['description'][2]}"}
         ]
       },
-      "Date": {
+      "date": {
         "type": "date",
         "date": {
           "start": DateTime.now().toLocal().toIso8601String(),
           "time_zone": "Asia/Taipei"
         }
       },
-      "Location": {
-        "type": "select",
-        "select": {
-          "name": location,
-        }
+      "location": {
+        "type": "rich_text",
+        "rich_text": [
+          {
+            "type": "text",
+            "text": {"content": location}
+          }
+        ]
+      },
+      "phone": {
+        "type": "rich_text",
+        "rich_text": [
+          {
+            "type": "text",
+            "text": {"content": "phone number unimplemented"}
+          }
+        ]
       }
     }
   };
