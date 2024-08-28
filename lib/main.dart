@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:camera/camera.dart';
+import 'package:lost_and_found_mockup/gemini.dart';
 import 'claude.dart';
 import 'notion.dart';
 import 'package:flutter/material.dart';
@@ -234,9 +235,7 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: () {
           _cameraController.takePicture().then((XFile file) {
             Navigator.of(context).push(IdentifyObjectScreen(
-                identifyOdjectWithClaude(file),
-                _locationController.text,
-                file));
+                identifyWithGemini(file), _locationController.text, file));
           });
           ;
         },

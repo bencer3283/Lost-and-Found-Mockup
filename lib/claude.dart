@@ -60,5 +60,6 @@ Future<String> identifyOdjectWithClaude(XFile image) async {
     result = response.body.toString();
     // print(response.statusCode.toString() + response.body.toString());
   }
+
   return result;
 }
